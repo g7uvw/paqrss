@@ -26,6 +26,10 @@ int main(int argc, char*argv[])
 	double *in;
     fftw_complex *out;
     
+    static const uint16_t specXSize = 1000;
+	static const uint16_t SepcYSize = 512;
+	static FIBITMAP *bitmap;
+    
     //alloc the FFT workspace
     in = (double*)fftw_malloc(sizeof(double) * BUFSIZE);
     int n_out = ((BUFSIZE/2)+1);
@@ -56,8 +60,14 @@ int main(int argc, char*argv[])
 		
 		fftw_plan fftplan;
 		fftplan = fftw_plan_dft_r2c_1d ( BUFSIZE, in, out, FFTW_ESTIMATE );
-        fftw_execute ( plan_forward );
+        fftw_execute ( fftplan );
 
+		//rewrite output buffer out[i][0] to be ABS^2 of the complex value
+		
+		for (uint i = 0; i < ((BUFSIZE/2)+1); ++i)
+		{
+		out[i][0] = out[i][0]*out[i][0] + out[i][1]*out[i][1];
+		}
 
 
 		/* And write it to STDOUT */
