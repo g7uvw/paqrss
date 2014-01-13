@@ -22,8 +22,15 @@ int main(int argc, char*argv[])
 	pa_simple *s = NULL;
 	int ret = 1;
 	int error;
-
 	int16_t buf[BUFSIZE];
+	double *in;
+    fftw_complex *out;
+    
+    //alloc the FFT workspace
+    in = (double*)fftw_malloc(sizeof(double) * BUFSIZE);
+    int n_out = ((BUFSIZE/2)+1);
+    // complex numbers out
+    out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * n_out);
 
 
 	/* Create the recording stream */
@@ -42,7 +49,16 @@ int main(int argc, char*argv[])
 			goto finish;
 		}
 		
-		//compute_fftw(&stuff);
+		for (unsigned int a = 0; a < BUFSIZE; a++)
+		{
+			in[a] = buf[a] * 1.0;
+		}
+		
+		fftw_plan fftplan;
+		fftplan = fftw_plan_dft_r2c_1d ( BUFSIZE, in, out, FFTW_ESTIMATE );
+        fftw_execute ( plan_forward );
+
+
 
 		/* And write it to STDOUT */
 		if (loop_write(STDOUT_FILENO, buf, sizeof(buf)) != sizeof(buf))
@@ -55,6 +71,8 @@ int main(int argc, char*argv[])
 	finish:
 	if (s)
 		pa_simple_free(s);
+	fftw_free ( in );
+    fftw_free ( out );
 	return ret;
 }
 
@@ -74,85 +92,5 @@ size -= (size_t) r;
 return ret;
 }
 
-static void prepare_fftw(struct holder *holder)
-{
-	unsigned int a;
-
-	holder->samples = fftw_alloc_real(holder->samples_count);
-	if (!holder->samples)
-		errx(3, "cannot allocate input");
-	holder->output = fftw_alloc_complex(holder->samples_count);
-	if (!holder->output)
-		errx(3, "cannot allocate output");
-
-	for (a = 0; a < holder->samples_count; a++) {
-		holder->samples[a] = 0;
-		holder->output[a] = 0;
-	}
-
-	holder->plan = fftw_plan_dft_r2c_1d(holder->samples_count,
-			holder->samples, holder->output, 0);
-	if (!holder->plan)
-		errx(3, "plan not created");
-}
-
-
-static void destroy_fftw(struct holder *holder)
-{
-	fftw_destroy_plan(holder->plan);
-	fftw_free(holder->output);
-	fftw_free(holder->samples);
-}
-
-/* compute avg of all channels */
-static void compute_avg(struct holder *holder, float *buf, unsigned int count)
-{
-	unsigned int channels = holder->channels;
-	unsigned int a, ch;
-
-	for (a = 0; a < count; a++) {
-		holder->samples[a] = 0;
-		for (ch = 0; ch < channels; ch++)
-			holder->samples[a] += buf[a * channels + ch];
-		holder->samples[a] /= channels;
-	}
-}
-
-static void compute_fftw(struct holder *holder)
-{
-	unsigned int a;
-
-	fftw_execute(holder->plan);
-
-	for (a = 0; a < holder->samples_count / 2; a++) {
-		holder->samples[a] = cabs(holder->output[a]);
-		if (holder->samples[a] > holder->max)
-			holder->max = holder->samples[a];
-	}
-}
-
-static void decode(struct holder *holder)
-{
-	unsigned int channels = holder->channels;
-	float buf[channels * holder->samples_count];
-	int count, short_read;
-
-	do {
-		count = sf_readf_float(holder->infile, buf,
-				holder->samples_count);
-		if (count <= 0)
-			break;
-
-		/* the last chunk? */
-		short_read = count != holder->samples_count;
-		if (!short_read) {
-			compute_avg(holder, buf, count);
-			compute_fftw(holder);
-			show_graph(holder);
-		}
-
-		write_snd(holder, buf, count);
-	} while (!short_read);
-}
 
 
