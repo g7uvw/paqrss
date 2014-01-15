@@ -23,16 +23,18 @@ int main(int argc, char*argv[])
 	int ret = 1;
 	int error;
 	int16_t buf[BUFSIZE];
+	int n_out = ((BUFSIZE/2)+1);
 	double *in;
     fftw_complex *out;
     
     static const uint16_t specXSize = 1000;
-	static const uint16_t SepcYSize = 512;
-	static FIBITMAP *bitmap;
+	static const uint16_t specYSize = 512;
+	FIBITMAP *bitmap = FreeImage_Allocate(specXSize, specYSize, 8);
+	uint16_t Image_Col = 0;
     
     //alloc the FFT workspace
     in = (double*)fftw_malloc(sizeof(double) * BUFSIZE);
-    int n_out = ((BUFSIZE/2)+1);
+    
     // complex numbers out
     out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * n_out);
 
@@ -43,7 +45,13 @@ int main(int argc, char*argv[])
 		fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", pa_strerror(error));
 		goto finish;
 	}
-	for (;;)
+	
+	time_t current_time, start_time;
+	time(&start_timer);
+	
+	while (current_time < (start_time + (60*10)))
+	
+	//for (;;)
 	{
 	
 		/* Record some data ... */
@@ -69,14 +77,40 @@ int main(int argc, char*argv[])
 		out[i][0] = out[i][0]*out[i][0] + out[i][1]*out[i][1];
 		}
 
-
-		/* And write it to STDOUT */
-		if (loop_write(STDOUT_FILENO, buf, sizeof(buf)) != sizeof(buf))
+		//do the image stuff here.
+		if (Image_Col < specXSize)
 		{
-			fprintf(stderr, __FILE__": write() failed: %s\n", strerror(errno));
-			goto finish;
+			uint samplesPerPixel = n_out / specYSize;
+			float val;
+			RGBQUAD pixel;
+			for (uint y = 0, sample = 0; y < specYSize; ++y)
+				{
+				// Average values over samplesPerPixel numbers.
+				val = 0.f;
+				for (uint localSample = 0; localSample < samplesPerPixel; ++localSample, ++sample)
+				val += out[sample][0];
+				val /= (float)samplesPerPixel;
+      
+				val = log10f(val + 1.f); // Logarithm.
+				val *= 0.4f / 3.f; // Manually selected scaling.
+				val = common::minmax(0.f, val, 1.f); // Clamp.
+				val = powf(val, 1.f/2.2f); // Gamma (a computer graphics thing :)
+				pixel.rgbRed = pixel.rgbGreen = pixel.rgbBlue = (uint8)(val * 255.f + 0.5f);
+				FreeImage_SetPixelColor(bitmap, Image_Col, y, &pixel);
+				}
+
+		++Image_Col;
 		}
+
+		
+		time(&current_time);
 	}
+	
+	FreeImage_Save(FIF_PNG, bitmap, "spectrogram.png");
+	FreeImage_Unload(bitmap);
+	FreeImage_DeInitialise();
+
+
 	ret = 0;
 	finish:
 	if (s)

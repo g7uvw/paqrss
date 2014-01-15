@@ -19,6 +19,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <time.h>
 struct holder {
 	fftw_complex *output;
 	fftw_plan plan;
