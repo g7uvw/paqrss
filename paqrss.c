@@ -1,22 +1,21 @@
 #include "paqrss.h"
 
-#define FFTSIZE 4096
-#define grab_length 1
+FIBITMAP * CreateBitmap(uint16_t Xsize,uint16_t Ysize,uint8_t BPP);
+
+FIBITMAP * CreateBitmap(uint16_t Xsize,uint16_t Ysize,uint8_t BPP)
+{
+	
+	printf("\nInit FreeImage        ");
+	FreeImage_Initialise(FALSE);
+	FIBITMAP *bitmap = FreeImage_Allocate(Xsize, Ysize, BPP,0,0,0); 
+	printf("[OK]");
+	return bitmap;
+	
+}
+
 
 int main(int argc, char*argv[])
 {
-	/* The sample type to use */
-	static const pa_sample_spec ss =
-	{
-		.format = PA_SAMPLE_S16LE,
-		.rate = 4096,
-		.channels = 1
-	};
-
-	struct holder holder = {};
-	holder.channels = ss.channels;
-	holder.samples_count = holder.samplerate / 100;
-	
 	pa_simple *s = NULL;
 	int ret = 1;
 	int error;
@@ -28,10 +27,12 @@ int main(int argc, char*argv[])
     static const uint16_t specXSize = 1000;
 	static const uint16_t specYSize = 2048;
 	
-	printf("\nInit FreeImage        ");
-	FreeImage_Initialise(FALSE);
-	FIBITMAP *bitmap = FreeImage_Allocate(specXSize, specYSize, 24,0,0,0); 
-	printf("[OK]");
+	FIBITMAP *bitmap = CreateBitmap(specXSize,specYSize,24);
+	
+	//printf("\nInit FreeImage        ");
+	//FreeImage_Initialise(FALSE);
+	//FIBITMAP *bitmap = FreeImage_Allocate(specXSize, specYSize, 24,0,0,0); 
+	//printf("[OK]");
 	
 	uint16_t Image_Col = 0;
     

@@ -20,21 +20,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
-struct holder {
-	fftw_complex *output;
-	fftw_plan plan;
-	int height, width;
-	unsigned int samples_count;
-	double *samples;
-	double max;
-	int channels;
-	int samplerate;
-};
-static ssize_t loop_write(int fd, const void*data, size_t size);
-static void prepare_fftw(struct holder *holder);
-static void destroy_fftw(struct holder *holder);
-static void compute_avg(struct holder *holder, float *buf, unsigned int count);
-static void compute_fftw(struct holder *holder);
-static void decode(struct holder *holder);
+
+#define FFTSIZE 4096
+#define grab_length 1
 
 
+/* The Pulse Audio sample type to use */
+	static const pa_sample_spec ss =
+	{
+		.format = PA_SAMPLE_S16LE,
+		.rate = 4096,
+		.channels = 1
+	};
