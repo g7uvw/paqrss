@@ -1,9 +1,7 @@
 #include "paqrss.h"
 
-#define BUFSIZE 1024
-
-
-
+#define FFTSIZE 4096
+#define grab_length 1
 
 int main(int argc, char*argv[])
 {
@@ -22,34 +20,59 @@ int main(int argc, char*argv[])
 	pa_simple *s = NULL;
 	int ret = 1;
 	int error;
-	int16_t buf[BUFSIZE];
-	int n_out = ((BUFSIZE/2)+1);
+	int16_t buf[FFTSIZE];
+	int n_out = ((FFTSIZE/2)+1);
 	double *in;
     fftw_complex *out;
     
     static const uint16_t specXSize = 1000;
-	static const uint16_t specYSize = 512;
-	FIBITMAP *bitmap = FreeImage_Allocate(specXSize, specYSize, 8);
+	static const uint16_t specYSize = 2048;
+	
+	printf("\nInit FreeImage        ");
+	FreeImage_Initialise(FALSE);
+	FIBITMAP *bitmap = FreeImage_Allocate(specXSize, specYSize, 24,0,0,0); 
+	printf("[OK]");
+	
 	uint16_t Image_Col = 0;
     
     //alloc the FFT workspace
-    in = (double*)fftw_malloc(sizeof(double) * BUFSIZE);
+    printf("\nAllocate FFT in array        ");
+    in = (double*)fftw_malloc(sizeof(double) * FFTSIZE);
+    printf("[OK]");
+    
+    printf("\nPad buffer        ");
+    //part fill the buffer to start.
+	for (int i=0; i<FFTSIZE/2; i++)
+		in[i] = 0.0;
+    printf("[OK]");
     
     // complex numbers out
+     printf("\nAllocate FFT out array        ");
     out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * n_out);
+     printf("[OK]");
+     
 
-
+	printf("\nConnect to PulseAudio        ");
 	/* Create the recording stream */
 	if (!(s = pa_simple_new(NULL, argv[0], PA_STREAM_RECORD, NULL, "record", &ss, NULL, NULL, &error)))
 	{
 		fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", pa_strerror(error));
 		goto finish;
 	}
+	printf("[OK]");
 	
+	start:
+	printf("\nGet Time        ");
 	time_t current_time, start_time;
-	time(&start_timer);
+	time(&start_time);
+	time(&current_time);
+	printf("[OK]");
+
+	time_t next_time = start_time + (grab_length*60);
+
 	
-	while (current_time < (start_time + (60*10)))
+	printf("\nStarting...        ");
+	while (current_time < next_time)
 	
 	//for (;;)
 	{
@@ -61,18 +84,19 @@ int main(int argc, char*argv[])
 			goto finish;
 		}
 		
-		for (unsigned int a = 0; a < BUFSIZE; a++)
+		for (unsigned int a = 0; a < FFTSIZE; a++)
 		{
-			in[a] = buf[a] * 1.0;
+			in[a] = buf[a] * 0.54 - 0.46 * cosf( (6.283185 * a) / (FFTSIZE - 1) );
 		}
 		
+		
 		fftw_plan fftplan;
-		fftplan = fftw_plan_dft_r2c_1d ( BUFSIZE, in, out, FFTW_ESTIMATE );
+		fftplan = fftw_plan_dft_r2c_1d ( FFTSIZE, in, out, FFTW_ESTIMATE );
         fftw_execute ( fftplan );
 
 		//rewrite output buffer out[i][0] to be ABS^2 of the complex value
 		
-		for (uint i = 0; i < ((BUFSIZE/2)+1); ++i)
+		for (uint i = 0; i < ((FFTSIZE/2)+1); ++i)
 		{
 		out[i][0] = out[i][0]*out[i][0] + out[i][1]*out[i][1];
 		}
@@ -92,21 +116,33 @@ int main(int argc, char*argv[])
 				val /= (float)samplesPerPixel;
       
 				val = log10f(val + 1.f); // Logarithm.
+				
 				val *= 0.4f / 3.f; // Manually selected scaling.
-				val = common::minmax(0.f, val, 1.f); // Clamp.
-				val = powf(val, 1.f/2.2f); // Gamma (a computer graphics thing :)
-				pixel.rgbRed = pixel.rgbGreen = pixel.rgbBlue = (uint8)(val * 255.f + 0.5f);
+				if (val < 0.0) printf("\n negaative val");
+				//if (val > 1.0) val = 1.0;
+				
+				//val = common::minmax(0.f, val, 1.f); // Clamp.
+				//val = powf(val, 1.f/2.2f); // Gamma (a computer graphics thing :)
+				
+				pixel.rgbBlue = 254;
+				pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
 				FreeImage_SetPixelColor(bitmap, Image_Col, y, &pixel);
 				}
 
 		++Image_Col;
+		printf("\n %ld Seconds left in this spectrogram",next_time-current_time);
 		}
 
 		
 		time(&current_time);
 	}
+	char filename[30];
+    sprintf( filename, "%ld.png", current_time );
+    printf("\nSaving spectrogram %s\n",filename);
+	//FreeImage_Save(FIF_PNG, bitmap, "spectrogram2.png",PNG_DEFAULT);
+	FreeImage_Save(FIF_PNG, bitmap, filename,PNG_DEFAULT);
+	goto start;
 	
-	FreeImage_Save(FIF_PNG, bitmap, "spectrogram.png");
 	FreeImage_Unload(bitmap);
 	FreeImage_DeInitialise();
 
