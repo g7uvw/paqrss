@@ -12,7 +12,7 @@ FIBITMAP * CreateBitmap(uint16_t Xsize,uint16_t Ysize,uint8_t BPP)
 	
 }
 
-double * CreateFFTworkspace( int FFTSize)
+double * CreateFFTworkspace( unsigned int FFTSize)
 {
 	//alloc the FFT workspace
     printf("\nAllocate FFT in array        ");
@@ -32,101 +32,41 @@ void PrePadFFT(double* in,int overlap)
 	
 }
 
-
-int main(int argc, char*argv[])
+fftw_complex* CreateFFToutbuf(unsigned int size)
 {
-	pa_simple *s = NULL;
-	int ret = 1;
-	int error;
-	int16_t buf[FFTSIZE];
-	int n_out = ((FFTSIZE/2)+1);
-	double *in;
-    fftw_complex *out;
-    
-    static const uint16_t specXSize = 1000;
-	static const uint16_t specYSize = 2048;
-	
-	FIBITMAP *bitmap = CreateBitmap(specXSize,specYSize,24);
-	
-	//printf("\nInit FreeImage        ");
-	//FreeImage_Initialise(FALSE);
-	//FIBITMAP *bitmap = FreeImage_Allocate(specXSize, specYSize, 24,0,0,0); 
-	//printf("[OK]");
-	
-	uint16_t Image_Col = 0;
-    
-    //alloc the FFT workspace
-    //printf("\nAllocate FFT in array        ");
-    //in = (double*)fftw_malloc(sizeof(double) * FFTSIZE);
-    //printf("[OK]");
-    
-    in = CreateFFTworkspace (FFTSIZE);
-    PrePadFFT(in,2);
-    
-    //printf("\nPad buffer        ");
-    //part fill the buffer to start.
-	//for (int i=0; i<FFTSIZE/2; i++)
-	//	in[i] = 0.0;
-    //printf("[OK]");
-    
-    // complex numbers out
-     printf("\nAllocate FFT out array        ");
-    out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * n_out);
-     printf("[OK]");
-     
+	// complex numbers out
+    printf("\nAllocate FFT out array        ");
+    fftw_complex* out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * size);
+		printf("[OK]");
+	return out;
+}
 
+struct pa_simple* OpenPAStream(pa_sample_spec ss)
+{
 	printf("\nConnect to PulseAudio        ");
+	pa_simple *s = NULL;
+	int error;
 	/* Create the recording stream */
-	if (!(s = pa_simple_new(NULL, argv[0], PA_STREAM_RECORD, NULL, "record", &ss, NULL, NULL, &error)))
+	if (!(s = pa_simple_new(NULL, "PAQRSS", PA_STREAM_RECORD, NULL, "record", &ss, NULL, NULL, &error)))
 	{
 		fprintf(stderr, __FILE__": pa_simple_new() failed: %s\n", pa_strerror(error));
-		goto finish;
+		exit(1);
 	}
-	printf("[OK]");
-	
-	start:
-	printf("\nGet Time        ");
-	time_t current_time, start_time;
-	time(&start_time);
-	time(&current_time);
-	printf("[OK]");
+	printf("[OK]");	
+	return s;
+}
 
-	time_t next_time = start_time + (grab_length*60);
-
+void HanningWindow(int16_t* unwindowed,double* windowed, unsigned int FFTSize)
+{
 	
-	printf("\nStarting...        ");
-	while (current_time < next_time)
-	
-	//for (;;)
-	{
-	
-		/* Record some data ... */
-		if (pa_simple_read(s, buf, sizeof(buf), &error) < 0)
+	for (unsigned int a = 0; a < FFTSIZE; a++)
 		{
-			fprintf(stderr, __FILE__": pa_simple_read() failed: %s\n", pa_strerror(error));
-			goto finish;
+			windowed[a] = unwindowed[a] * 0.54 - 0.46 * cosf( (6.283185 * (double) a) / (FFTSize - 1) );
 		}
-		
-		for (unsigned int a = 0; a < FFTSIZE; a++)
-		{
-			in[a] = buf[a] * 0.54 - 0.46 * cosf( (6.283185 * a) / (FFTSIZE - 1) );
-		}
-		
-		
-		fftw_plan fftplan;
-		fftplan = fftw_plan_dft_r2c_1d ( FFTSIZE, in, out, FFTW_ESTIMATE );
-        fftw_execute ( fftplan );
+}
 
-		//rewrite output buffer out[i][0] to be ABS^2 of the complex value
-		
-		for (uint i = 0; i < ((FFTSIZE/2)+1); ++i)
-		{
-		out[i][0] = out[i][0]*out[i][0] + out[i][1]*out[i][1];
-		}
-
-		//do the image stuff here.
-		if (Image_Col < specXSize)
-		{
+void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
+{
 			uint samplesPerPixel = n_out / specYSize;
 			float val;
 			RGBQUAD pixel;
@@ -151,9 +91,76 @@ int main(int argc, char*argv[])
 				pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
 				FreeImage_SetPixelColor(bitmap, Image_Col, y, &pixel);
 				}
+	
+	
+}
 
-		++Image_Col;
-		printf("\n %ld Seconds left in this spectrogram",next_time-current_time);
+
+int main(int argc, char*argv[])
+{
+	pa_simple *s = NULL;
+	int ret = 1;
+	int error;
+	int16_t buf[FFTSIZE];
+	unsigned int n_out = ((FFTSIZE/2)+1);
+	double *in;
+    fftw_complex *out;
+    
+    static const uint16_t specXSize = 1000;
+	static const uint16_t specYSize = 2048;
+	uint16_t Image_Col = 0;
+	
+	//connect to pulseadio first - if tthis fails, no point doing anything else
+	s = OpenPAStream(ss);
+	
+	//somewhere to draw an image
+	FIBITMAP *bitmap = CreateBitmap(specXSize,specYSize,24);
+    
+    //create FFT buffers and pre-pad input for overlap (if used)
+    in = CreateFFTworkspace (FFTSIZE);
+    PrePadFFT(in,2);    
+    out = CreateFFToutbuf(n_out);
+
+	start:
+	printf("\nGet Time        ");
+	time_t current_time, start_time;
+	time(&start_time);
+	time(&current_time);
+	printf("[OK]");
+
+	time_t next_time = start_time + (grab_length*60);
+
+	
+	printf("\nStarting...        ");
+	while (current_time < next_time)
+	
+	{
+	
+		/* Record some data ... */
+		if (pa_simple_read(s, buf, sizeof(buf), &error) < 0)
+		{
+			fprintf(stderr, __FILE__": pa_simple_read() failed: %s\n", pa_strerror(error));
+			goto finish;
+		}
+		
+		HanningWindow(buf,in, FFTSIZE);
+
+		fftw_plan fftplan;
+		fftplan = fftw_plan_dft_r2c_1d ( FFTSIZE, in, out, FFTW_ESTIMATE );
+        fftw_execute ( fftplan );
+
+		//rewrite output buffer out[i][0] to be ABS^2 of the complex value
+		
+		for (uint i = 0; i < ((FFTSIZE/2)+1); ++i)
+		{
+		out[i][0] = out[i][0]*out[i][0] + out[i][1]*out[i][1];
+		}
+
+		if (Image_Col < specXSize)
+		{
+			PlotFFTData(bitmap, out, n_out, specXSize, specYSize,Image_Col);
+			++Image_Col;
+			printf("\n %ld Seconds left in this spectrogram",next_time-current_time);
 		}
 
 		
@@ -164,7 +171,10 @@ int main(int argc, char*argv[])
     printf("\nSaving spectrogram %s\n",filename);
 	//FreeImage_Save(FIF_PNG, bitmap, "spectrogram2.png",PNG_DEFAULT);
 	FreeImage_Save(FIF_PNG, bitmap, filename,PNG_DEFAULT);
-	goto start;
+	
+	if (Image_Col < specXSize)
+		goto start;
+	else
 	
 	FreeImage_Unload(bitmap);
 	FreeImage_DeInitialise();
