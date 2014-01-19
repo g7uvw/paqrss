@@ -21,7 +21,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define FFTSIZE 4096
+int FFTSIZE = 4096;
 #define grab_length 1
 
 
@@ -32,3 +32,9 @@
 		.rate = 4096,
 		.channels = 1
 	};
+
+FIBITMAP * CreateBitmap(uint16_t Xsize,uint16_t Ysize,uint8_t BPP);
+double * CreateFFTworkspace( int FFTSize);
+void PrePadFFT(double* in,int overlap);
+
+

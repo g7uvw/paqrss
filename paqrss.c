@@ -1,6 +1,5 @@
 #include "paqrss.h"
 
-FIBITMAP * CreateBitmap(uint16_t Xsize,uint16_t Ysize,uint8_t BPP);
 
 FIBITMAP * CreateBitmap(uint16_t Xsize,uint16_t Ysize,uint8_t BPP)
 {
@@ -10,6 +9,26 @@ FIBITMAP * CreateBitmap(uint16_t Xsize,uint16_t Ysize,uint8_t BPP)
 	FIBITMAP *bitmap = FreeImage_Allocate(Xsize, Ysize, BPP,0,0,0); 
 	printf("[OK]");
 	return bitmap;
+	
+}
+
+double * CreateFFTworkspace( int FFTSize)
+{
+	//alloc the FFT workspace
+    printf("\nAllocate FFT in array        ");
+    double * in = fftw_malloc(sizeof(double) * FFTSIZE);
+    printf("[OK]");
+    return in;
+    
+}
+
+void PrePadFFT(double* in,int overlap)
+{
+	printf("\nPad buffer        ");
+    //part fill the buffer to start.
+	for (int i=0; i<FFTSIZE/overlap; i++)
+		in[i] = 0.0;
+    printf("[OK]");
 	
 }
 
@@ -37,15 +56,18 @@ int main(int argc, char*argv[])
 	uint16_t Image_Col = 0;
     
     //alloc the FFT workspace
-    printf("\nAllocate FFT in array        ");
-    in = (double*)fftw_malloc(sizeof(double) * FFTSIZE);
-    printf("[OK]");
+    //printf("\nAllocate FFT in array        ");
+    //in = (double*)fftw_malloc(sizeof(double) * FFTSIZE);
+    //printf("[OK]");
     
-    printf("\nPad buffer        ");
+    in = CreateFFTworkspace (FFTSIZE);
+    PrePadFFT(in,2);
+    
+    //printf("\nPad buffer        ");
     //part fill the buffer to start.
-	for (int i=0; i<FFTSIZE/2; i++)
-		in[i] = 0.0;
-    printf("[OK]");
+	//for (int i=0; i<FFTSIZE/2; i++)
+	//	in[i] = 0.0;
+    //printf("[OK]");
     
     // complex numbers out
      printf("\nAllocate FFT out array        ");
