@@ -67,30 +67,32 @@ void HanningWindow(int16_t* unwindowed,double* windowed, unsigned int FFTSize)
 
 void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
 {
-			uint samplesPerPixel = n_out / specYSize;
+			unsigned int  samplesPerPixel = n_out / specYSize;
 			float val;
 			RGBQUAD pixel;
-			for (uint y = 0, sample = 0; y < specYSize; ++y)
+			
+			for (unsigned int y = 0; y < specYSize; y++)
+			{
+				val = 0.0;
+				//do basic samples per pixel averaging
+				for (unsigned int counter = 0; counter < samplesPerPixel; counter++)
 				{
-				// Average values over samplesPerPixel numbers.
-				val = 0.f;
-				for (uint localSample = 0; localSample < samplesPerPixel; ++localSample, ++sample)
-				val += out[sample][0];
-				val /= (float)samplesPerPixel;
-      
-				val = log10f(val + 1.f); // Logarithm.
+					val += out[y+counter+500][0];
+				}
 				
+				val /= (float) samplesPerPixel;
+				//compute LOG10 for scaling.
+				val = log10f(val + 1.0);
 				val *= 0.4f / 3.f; // Manually selected scaling.
-				if (val < 0.0) printf("\n negaative val");
-				//if (val > 1.0) val = 1.0;
-				
-				//val = common::minmax(0.f, val, 1.f); // Clamp.
-				//val = powf(val, 1.f/2.2f); // Gamma (a computer graphics thing :)
-				
 				pixel.rgbBlue = 254;
 				pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
 				FreeImage_SetPixelColor(bitmap, Image_Col, y, &pixel);
-				}
+				
+			} 
+			
+			
+			
+
 	
 	
 }
@@ -107,7 +109,7 @@ int main(int argc, char*argv[])
     fftw_complex *out;
     
     static const uint16_t specXSize = 1000;
-	static const uint16_t specYSize = 2048;
+	static const uint16_t specYSize = 1024;
 	uint16_t Image_Col = 0;
 	
 	//connect to pulseadio first - if tthis fails, no point doing anything else
@@ -189,21 +191,7 @@ int main(int argc, char*argv[])
 	return ret;
 }
 
-/* A simple routine calling UNIX write() in a loop */
-static ssize_t loop_write(int fd, const void*data, size_t size) {
-ssize_t ret = 0;
-while (size > 0) {
-ssize_t r;
-if ((r = write(fd, data, size)) < 0)
-return r;
-if (r == 0)
-break;
-ret += r;
-data = (const uint8_t*) data + r;
-size -= (size_t) r;
-}
-return ret;
-}
+
 
 
 
