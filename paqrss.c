@@ -65,36 +65,68 @@ void HanningWindow(int16_t* unwindowed,double* windowed, unsigned int FFTSize)
 		}
 }
 
-void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
-{
-			unsigned int  samplesPerPixel = n_out / specYSize;
-			float val;
-			RGBQUAD pixel;
+//inline void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
+//{
+			//unsigned int  samplesPerPixel = n_out / specYSize;
+			//float val;
+			//RGBQUAD pixel;
 			
-			for (unsigned int y = 0; y < specYSize; y++)
-			{
-				val = 0.0;
-				//do basic samples per pixel averaging
-				for (unsigned int counter = 0; counter < samplesPerPixel; counter++)
-				{
-					val += out[y+counter+500][0];
-				}
+			//for (unsigned int y = 0; y < specYSize; y++)
+			//{
+				//val = 0.0;
+				////do basic samples per pixel averaging
+				//for (unsigned int counter = 0; counter < samplesPerPixel; counter++)
+				//{
+					//val += out[y+counter+500][0];
+				//}
 				
-				val /= (float) samplesPerPixel;
-				//compute LOG10 for scaling.
-				val = log10f(val + 1.0);
-				val *= 0.4f / 3.f; // Manually selected scaling.
-				pixel.rgbBlue = 254;
-				pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
-				FreeImage_SetPixelColor(bitmap, Image_Col, y, &pixel);
+				//val /= (float) samplesPerPixel;
+				////compute LOG10 for scaling.
+				//val = log10f(val + 1.0);
+				//val *= 0.4f / 3.f; // Manually selected scaling.
+				//pixel.rgbBlue = 254;
+				//pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
+				//FreeImage_SetPixelColor(bitmap, Image_Col, y, &pixel);
 				
-			} 
+			//} 
 			
 			
 			
 
 	
 	
+//}
+
+inline void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
+{
+//                        unsigned int samplesPerPixel = n_out / specYSize, yStart;
+                        unsigned int PixelsPerSample = 4, yStart;
+                        float val;
+                        RGBQUAD pixel;
+                        
+                        for (unsigned int y = 500; y < 1500; y++)
+                        {
+                                val = out[y][0];
+                                val = log10f(val + 1.0);
+                                val *= 0.4f / 3.f; // Manually selected scaling.
+                                pixel.rgbBlue = 254;
+                                pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
+                                //do basic samples per pixel averaging
+				yStart = (y-500)*4;
+                                for (unsigned int counter = 0; counter < PixelsPerSample; counter++)
+                                {
+                                	FreeImage_SetPixelColor(bitmap, Image_Col, yStart+counter, &pixel);
+                                }
+                                
+                                //compute LOG10 for scaling.
+                                
+                        }
+                        
+                        
+                        
+
+        
+        
 }
 
 
@@ -109,7 +141,7 @@ int main(int argc, char*argv[])
     fftw_complex *out;
     
     static const uint16_t specXSize = 1000;
-	static const uint16_t specYSize = 1024;
+	static const uint16_t specYSize = 2048;
 	uint16_t Image_Col = 0;
 	
 	//connect to pulseadio first - if tthis fails, no point doing anything else
