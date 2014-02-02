@@ -99,7 +99,7 @@ void HanningWindow(int16_t* unwindowed,double* windowed, unsigned int FFTSize)
 
 inline void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
 {
-//                        unsigned int samplesPerPixel = n_out / specYSize, yStart;
+//                      unsigned int samplesPerPixel = n_out / specYSize, yStart;
                         unsigned int PixelsPerSample = 4, yStart;
                         float val;
                         RGBQUAD pixel;
@@ -151,7 +151,9 @@ int main(int argc, char*argv[])
 			printf("\nCan't connect to Pulse Audio");
 			exit(1);
 		}
-		
+	//create a plan
+	fftw_plan fftplan;
+	
 	//somewhere to draw an image
 	FIBITMAP *bitmap = CreateBitmap(specXSize,specYSize,24);
     
@@ -184,7 +186,7 @@ int main(int argc, char*argv[])
 		
 		HanningWindow(buf,in, FFTSIZE);
 
-		fftw_plan fftplan;
+		
 		fftplan = fftw_plan_dft_r2c_1d ( FFTSIZE, in, out, FFTW_ESTIMATE );
         fftw_execute ( fftplan );
 
