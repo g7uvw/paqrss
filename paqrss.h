@@ -21,7 +21,8 @@
 #include <sys/types.h>
 #include <time.h>
 
-int FFTSIZE = 4096;
+int FFTSIZE = 16384; 
+//4096;
 #define grab_length 1
 
 
@@ -29,7 +30,7 @@ int FFTSIZE = 4096;
 	static const pa_sample_spec ss =
 	{
 		.format = PA_SAMPLE_S16LE,
-		.rate = 4096,
+		.rate = 48000,
 		.channels = 1
 	};
 
