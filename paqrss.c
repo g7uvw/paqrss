@@ -112,7 +112,7 @@ inline void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out,
                                 pixel.rgbBlue = 254;
                                 pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
                                 //do basic samples per pixel averaging
-				yStart = (y-500)*4;
+								yStart = (y-500)*4;
                                 for (unsigned int counter = 0; counter < PixelsPerSample; counter++)
                                 {
                                 	FreeImage_SetPixelColor(bitmap, Image_Col, yStart+counter, &pixel);
@@ -146,7 +146,12 @@ int main(int argc, char*argv[])
 	
 	//connect to pulseadio first - if tthis fails, no point doing anything else
 	s = OpenPAStream(ss);
-	
+	if (!s)
+		{
+			printf("\nCan't connect to Pulse Audio");
+			exit(1);
+		}
+		
 	//somewhere to draw an image
 	FIBITMAP *bitmap = CreateBitmap(specXSize,specYSize,24);
     
