@@ -24,9 +24,10 @@ double * CreateFFTworkspace( unsigned int FFTSize)
 
 void PrePadFFT(double* in,int overlap)
 {
+	int i = 0;
 	printf("\nPad buffer        ");
     //part fill the buffer to start.
-	for (int i=0; i<FFTSIZE/overlap; i++)
+	for (i=0; i<FFTSIZE/overlap; i++)
 		in[i] = 0.0;
     printf("[OK]");
 	
@@ -58,86 +59,106 @@ struct pa_simple* OpenPAStream(pa_sample_spec ss)
 
 void HanningWindow(int16_t* unwindowed,double* windowed, unsigned int FFTSize)
 {
-	
-	for (unsigned int a = 0; a < FFTSIZE; a++)
+	unsigned int a = 0;
+	for (a = 0; a < FFTSIZE; a++)
 		{
 			windowed[a] = unwindowed[a] * 0.54 - 0.46 * cosf( (6.283185 * (double) a) / (FFTSize - 1) );
 		}
 }
 
-//inline void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
-//{
-			//unsigned int  samplesPerPixel = n_out / specYSize;
-			//float val;
-			//RGBQUAD pixel;
-			
-			//for (unsigned int y = 0; y < specYSize; y++)
-			//{
-				//val = 0.0;
-				////do basic samples per pixel averaging
-				//for (unsigned int counter = 0; counter < samplesPerPixel; counter++)
-				//{
-					//val += out[y+counter+500][0];
-				//}
-				
-				//val /= (float) samplesPerPixel;
-				////compute LOG10 for scaling.
-				//val = log10f(val + 1.0);
-				//val *= 0.4f / 3.f; // Manually selected scaling.
-				//pixel.rgbBlue = 254;
-				//pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
-				//FreeImage_SetPixelColor(bitmap, Image_Col, y, &pixel);
-				
-			//} 
-			
-			
-			
-
+void NormaliseLevels(double* unscaled, double* scaled, unsigned int FFTSize)
+{
+	unsigned int a = 0;
+	double maxscale = 1;
+	// find the largest unscaled value
+	for (a = 0; a < FFTSIZE; a++)
+	{
+		if (unscaled[a] > maxscale)
+		{
+			maxscale = unscaled[a];
+		}
+	}
 	
-	
-//}
+	// divide all elements by the largest one to normalise
+	for (a = 0; a < FFTSIZE; a++)
+	{
+		scaled[a] = (unscaled[a] / maxscale);
+	}
+}
 
 inline void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
 {
-//                        unsigned int samplesPerPixel = n_out / specYSize, yStart;
-                        unsigned int PixelsPerSample = 4, yStart;
-                        float val;
-                        RGBQUAD pixel;
+			unsigned int  samplesPerPixel = n_out / specYSize;
+			unsigned int y = 0;
+			unsigned int counter = 0;
+			float val;
+			RGBQUAD pixel;
+			
+			for (y = 0; y < specYSize; y++)
+			{
+				val = 0.0;
+				//do basic samples per pixel averaging
+				for (counter = 0; counter < samplesPerPixel; counter++)
+				{
+					val += out[y+counter+500][0];
+				}
+				
+				val /= (float) samplesPerPixel;
+				//compute LOG10 for scaling.
+				val = log10f(val + 1.0);
+				val *= 0.4f / 3.f; // Manually selected scaling.
+				pixel.rgbBlue = 254;
+				pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
+				FreeImage_SetPixelColor(bitmap, Image_Col, y, &pixel);
+				
+			} 
+}
+
+//inline void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
+//{
+////                        unsigned int samplesPerPixel = n_out / specYSize, yStart;
+						//unsigned int y = 0;
+						//unsigned int counter = 0;
+                        //unsigned int PixelsPerSample = 4, yStart;
+                        //float val;
+                        //RGBQUAD pixel;
                         
-                        for (unsigned int y = 500; y < 1500; y++)
-                        {
-                                val = out[y][0];
-                                val = log10f(val + 1.0);
-                                val *= 0.4f / 3.f; // Manually selected scaling.
-                                pixel.rgbBlue = 254;
-                                pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
-                                //do basic samples per pixel averaging
-								yStart = (y-500)*4;
-                                for (unsigned int counter = 0; counter < PixelsPerSample; counter++)
-                                {
-                                	FreeImage_SetPixelColor(bitmap, Image_Col, yStart+counter, &pixel);
-                                }
+                        //for (y = 500; y < 1500; y++)
+                        //{
+                                //val = out[y][0];
+                                //val = log10f(val + 1.0);
+                                //val *= 0.4f / 3.f; // Manually selected scaling.
+                                //pixel.rgbBlue = 254;
+                                //pixel.rgbRed = pixel.rgbGreen = (uint8_t)(val * 255.f + 0.5f);
+                                ////do basic samples per pixel averaging
+								//yStart = (y-500)*4;
+                                //for (counter = 0; counter < PixelsPerSample; counter++)
+                                //{
+                                	//FreeImage_SetPixelColor(bitmap, Image_Col, yStart+counter, &pixel);
+                                //}
                                 
-                                //compute LOG10 for scaling.
+                                ////compute LOG10 for scaling.
                                 
-                        }
+                        //}
                         
                         
                         
 
         
         
-}
+//}
 
 
 int main(int argc, char*argv[])
 {
 	pa_simple *s = NULL;
 	int ret = 1;
+	uint i = 0;
 	int error;
 	int16_t buf[FFTSIZE];
 	unsigned int n_out = ((FFTSIZE/2)+1);
 	double *in;
+	double *norm;
     fftw_complex *out;
     
     static const uint16_t specXSize = 1000;
@@ -157,6 +178,7 @@ int main(int argc, char*argv[])
     
     //create FFT buffers and pre-pad input for overlap (if used)
     in = CreateFFTworkspace (FFTSIZE);
+    norm = CreateFFTworkspace (FFTSIZE);
     PrePadFFT(in,2);    
     out = CreateFFToutbuf(n_out);
 
@@ -182,15 +204,16 @@ int main(int argc, char*argv[])
 			goto finish;
 		}
 		
-		HanningWindow(buf,in, FFTSIZE);
+		HanningWindow (buf, in, FFTSIZE);
+		
+		NormaliseLevels (in, norm, FFTSIZE);
 
 		fftw_plan fftplan;
-		fftplan = fftw_plan_dft_r2c_1d ( FFTSIZE, in, out, FFTW_ESTIMATE );
+		fftplan = fftw_plan_dft_r2c_1d ( FFTSIZE, norm, out, FFTW_ESTIMATE );
         fftw_execute ( fftplan );
 
 		//rewrite output buffer out[i][0] to be ABS^2 of the complex value
-		
-		for (uint i = 0; i < ((FFTSIZE/2)+1); ++i)
+		for (i = 0; i < ((FFTSIZE/2)+1); ++i)
 		{
 		out[i][0] = out[i][0]*out[i][0] + out[i][1]*out[i][1];
 		}

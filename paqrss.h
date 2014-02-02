@@ -21,20 +21,21 @@
 #include <sys/types.h>
 #include <time.h>
 
-int FFTSIZE = 4096;
-#define grab_length 1
+// GS HACKED from 4096 to 
+int FFTSIZE = 65536;
 
+#define grab_length 1
 
 /* The Pulse Audio sample type to use */
 	static const pa_sample_spec ss =
 	{
 		.format = PA_SAMPLE_S16LE,
-		.rate = 4096,
+		.rate = 48000,
 		.channels = 1
 	};
 
 FIBITMAP* CreateBitmap(uint16_t Xsize,uint16_t Ysize,uint8_t BPP);
-double* CreateFFTworkspace( unsigned int FFTSize);
+double* CreateFFTworkspace(unsigned int FFTSize);
 fftw_complex* CreateFFToutbuf(unsigned int size);
 void PrePadFFT(double* in,int overlap);
 struct pa_simple* OpenPAStream(pa_sample_spec ss);
