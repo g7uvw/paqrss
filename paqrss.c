@@ -57,7 +57,7 @@ struct pa_simple* OpenPAStream(pa_sample_spec ss)
 	return s;
 }
 
-void HanningWindow(int16_t* unwindowed,double* windowed, unsigned int FFTSize)
+void HanningWindow(int16_t* unwindowed, double* windowed, unsigned int FFTSize)
 {
 	unsigned int a = 0;
 	for (a = 0; a < FFTSIZE; a++)
@@ -66,16 +66,16 @@ void HanningWindow(int16_t* unwindowed,double* windowed, unsigned int FFTSize)
 		}
 }
 
-void NormaliseLevels(double* unscaled, double* scaled, unsigned int FFTSize)
+double NormaliseLevels(double* unscaled, double* scaled, unsigned int FFTSize)
 {
 	unsigned int a = 0;
-	double maxscale = 1;
+	double maxscale = 0;
 	// find the largest unscaled value
 	for (a = 0; a < FFTSIZE; a++)
 	{
-		if (unscaled[a] > maxscale)
+		if (abs(unscaled[a]) > maxscale)
 		{
-			maxscale = unscaled[a];
+			maxscale = abs(unscaled[a]);
 		}
 	}
 	
@@ -84,6 +84,8 @@ void NormaliseLevels(double* unscaled, double* scaled, unsigned int FFTSize)
 	{
 		scaled[a] = (unscaled[a] / maxscale);
 	}
+	
+	return maxscale;
 }
 
 inline void PlotFFTData(FIBITMAP* bitmap, fftw_complex *out, unsigned int n_out, uint16_t specXSize, uint16_t specYSize,uint16_t Image_Col)
@@ -159,6 +161,7 @@ int main(int argc, char*argv[])
 	unsigned int n_out = ((FFTSIZE/2)+1);
 	double *in;
 	double *norm;
+	double normalisation = 0;
     fftw_complex *out;
     
     static const uint16_t specXSize = 1000;
@@ -206,7 +209,7 @@ int main(int argc, char*argv[])
 		
 		HanningWindow (buf, in, FFTSIZE);
 		
-		NormaliseLevels (in, norm, FFTSIZE);
+		normalisation = NormaliseLevels (in, norm, FFTSIZE);
 
 		fftw_plan fftplan;
 		fftplan = fftw_plan_dft_r2c_1d ( FFTSIZE, norm, out, FFTW_ESTIMATE );
@@ -222,7 +225,7 @@ int main(int argc, char*argv[])
 		{
 			PlotFFTData(bitmap, out, n_out, specXSize, specYSize,Image_Col);
 			++Image_Col;
-			printf("\n %ld Seconds left in this spectrogram",next_time-current_time);
+			printf("\n %ld Seconds left in this spectrogram (audio scale %f)", next_time-current_time, normalisation);
 		}
 
 		
